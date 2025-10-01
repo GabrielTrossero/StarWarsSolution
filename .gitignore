@@ -1,0 +1,42 @@
+# ─── .NET build ─────────────────────────────────────
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.nuget
+*.nupkg
+packages/
+publish/
+out/
+
+# ─── SQLite ─────────────────────────────────────────
+*.db
+
+# ─── IDEs ───────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.psess
+*.vspx
+.vs/
+
+# ─── Docker ─────────────────────────────────────────
+docker-compose.yml
+
+# ─── Logs / temporales ──────────────────────────────
+*.log
+*.tmp
+*.bak
+logs/
+
+# ─── Node.js  ───────────────────────────────────────
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# ─── Mac/Linux ──────────────────────────────────────
+.DS_Store
+*.tar.gz
+Thumbs.db
