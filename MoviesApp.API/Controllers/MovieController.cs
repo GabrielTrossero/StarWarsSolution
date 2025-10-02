@@ -27,6 +27,7 @@ namespace MoviesApp.API.Controllers
         }
 
         [HttpGet("{id:int}")]
+        [Authorize(Roles = "Regular")]
         public async Task<IActionResult> GetById(int id)
         {
             var movie = await _movieService.GetMovieById(id);
@@ -37,6 +38,7 @@ namespace MoviesApp.API.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Create(Movie movie)
         {
             var created = await _movieService.CreateMovie(movie);
@@ -44,6 +46,7 @@ namespace MoviesApp.API.Controllers
         }
 
         [HttpPut("{id:int}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Update(int id, Movie movie)
         {
             if (id != movie.Id)
@@ -57,6 +60,7 @@ namespace MoviesApp.API.Controllers
         }
 
         [HttpDelete("{id:int}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(int id)
         {
             var deleted = await _movieService.DeleteMovie(id);
@@ -67,6 +71,7 @@ namespace MoviesApp.API.Controllers
         }
 
         [HttpPost("sync")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Sync()
         {
             await _movieExternalService.SyncMoviesAsync();
