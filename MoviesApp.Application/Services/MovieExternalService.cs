@@ -31,80 +31,91 @@ namespace MoviesApp.Application.Services
 
         public async Task SyncMoviesAsync()
         {
-            if (_isSyncing)
-            {
-                return;
-            }
+            if (_isSyncing) return;
 
             try
             {
                 _isSyncing = true;
-                _logger.LogInformation("Iniciando sincronización de películas...");
+                _logger.LogInformation("Starting movie synchronization...");
 
-                // Obtener listado desde la API externa
-                var response = await _httpClient.GetFromJsonAsync<SwapiFilmResponse>("https://www.swapi.tech/api/films");
-
-                if (response?.Result == null || !response.Result.Any())
+                var films = await FetchExternalFilmsAsync();
+                if (films == null || !films.Any())
                 {
-                    _logger.LogWarning("No se obtuvieron películas desde la API externa.");
+                    _logger.LogWarning("No movies retrieved from the external API.");
                     return;
                 }
 
-                // Extraer los UIDs de todas las películas externas
-                var externalIds = response.Result.Select(f => f.Uid).ToList();
+                var existingMovies = await GetExistingMoviesAsync(films.Select(f => f.Uid).ToList());
+                var newMovies = MapNewMovies(films, existingMovies);
 
-                // Traer de una sola vez todas las películas existentes en BD
-                var existingMoviesList = await _movieRepository.GetByExternalIdsAsync(externalIds);
-                var existingMovies = existingMoviesList.ToDictionary(m => m.ExternalId);
-
-                var newMovies = new List<Movie>();
-
-                foreach (var film in response.Result)
-                {
-                    if (!existingMovies.ContainsKey(film.Uid))
-                    {
-                        var movie = new Movie
-                        {
-                            ExternalId = film.Uid,
-                            Title = film.Properties.Title,
-                            Director = film.Properties.Director,
-                            Producer = film.Properties.Producer,
-                            Created = DateTime.Parse(film.Properties.Created),
-                            Edited = DateTime.Parse(film.Properties.Edited),
-                            ReleaseDate = DateTime.Parse(film.Properties.Release_date),
-                            EpisodeId = film.Properties.Episode_id,
-                            Url = film.Properties.Url,
-                        };
-                        newMovies.Add(movie);
-                        _logger.LogInformation("Nueva película detectada: {title}", movie.Title);
-                    }
-                    else
-                    {
-                        _logger.LogInformation("Película existente encontrada: {title}", existingMovies[film.Uid].Title);
-                    }
-                }
-
-                if (newMovies.Any())
-                {
-                    await _movieRepository.AddRangeAsync(newMovies);
-                    await _movieRepository.SaveChangesAsync();
-                    _logger.LogInformation("{count} nuevas películas agregadas a la BD.", newMovies.Count);
-                }
-                else
-                {
-                    _logger.LogInformation("No hay nuevas películas para agregar.");
-                }
-
-                _logger.LogInformation("Sincronización completada con éxito.");
+                await PersistNewMoviesAsync(newMovies);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error durante la sincronización de películas");
+                _logger.LogError(ex, "Error during movie synchronization");
             }
             finally
             {
                 _isSyncing = false;
             }
+        }
+
+        private async Task<List<SwapiFilmResult>?> FetchExternalFilmsAsync()
+        {
+            var response = await _httpClient.GetFromJsonAsync<SwapiFilmResponse>("https://www.swapi.tech/api/films");
+            return response?.Result;
+        }
+
+        private async Task<Dictionary<string, Movie>> GetExistingMoviesAsync(List<string> externalIds)
+        {
+            var existing = await _movieRepository.GetByExternalIdsAsync(externalIds);
+            return existing.ToDictionary(m => m.ExternalId);
+        }
+
+        private List<Movie> MapNewMovies(List<SwapiFilmResult> films, Dictionary<string, Movie> existingMovies)
+        {
+            var newMovies = new List<Movie>();
+
+            foreach (var film in films)
+            {
+                if (!existingMovies.ContainsKey(film.Uid))
+                {
+                    var movie = new Movie
+                    {
+                        ExternalId = film.Uid,
+                        Title = film.Properties.Title,
+                        Director = film.Properties.Director,
+                        Producer = film.Properties.Producer,
+                        Created = DateTime.Parse(film.Properties.Created),
+                        Edited = DateTime.Parse(film.Properties.Edited),
+                        ReleaseDate = DateTime.Parse(film.Properties.Release_date),
+                        EpisodeId = film.Properties.Episode_id,
+                        Url = film.Properties.Url
+                    };
+                    newMovies.Add(movie);
+                    _logger.LogInformation("New movie detected: {title} (ExternalId: {externalId})", movie.Title, movie.ExternalId);
+                }
+                else
+                {
+                    _logger.LogInformation("Existing movie found: {title} (ExternalId: {externalId})", existingMovies[film.Uid].Title, film.Uid);
+                }
+            }
+
+            return newMovies;
+        }
+
+        private async Task PersistNewMoviesAsync(List<Movie> newMovies)
+        {
+            if (!newMovies.Any())
+            {
+                _logger.LogInformation("No new movies to add.");
+                return;
+            }
+
+            await _movieRepository.AddRangeAsync(newMovies);
+            await _movieRepository.SaveChangesAsync();
+            _logger.LogInformation("{count} new movies added to the database.", newMovies.Count);
+            _logger.LogInformation("Movie synchronization completed successfully.");
         }
     }
 }

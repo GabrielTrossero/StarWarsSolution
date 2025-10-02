@@ -50,7 +50,7 @@ namespace MoviesApp.API.Controllers
         public async Task<IActionResult> Update(int id, Movie movie)
         {
             if (id != movie.Id)
-                return BadRequest("El ID no coincide.");
+                return BadRequest("The ID does not match.");
 
             var updated = await _movieService.UpdateMovie(movie);
             if (updated == null)
@@ -75,7 +75,7 @@ namespace MoviesApp.API.Controllers
         public async Task<IActionResult> Sync()
         {
             await _movieExternalService.SyncMoviesAsync();
-            return Ok("Sincronización ejecutada.");
+            return Ok("Synchronization executed.");
         }
     }
 }
