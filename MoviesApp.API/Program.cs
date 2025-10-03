@@ -116,13 +116,22 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddControllers();
 
+
 var app = builder.Build();
 
+if (!app.Environment.IsDevelopment())
+{
+    // Configurar Kestrel solo en Render / producción
+    var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+    builder.WebHost.ConfigureKestrel(options =>
+    {
+        options.ListenAnyIP(int.Parse(port));
+    });
+}
+
+// Middleware
 app.UseSwagger();
 app.UseSwaggerUI();
-
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-app.Urls.Add($"http://*:{port}");
 
 app.UseHttpsRedirection();
 
@@ -130,5 +139,11 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+app.MapGet("/", context =>
+{
+    context.Response.Redirect("/swagger");
+    return Task.CompletedTask;
+});
 
 app.Run();
