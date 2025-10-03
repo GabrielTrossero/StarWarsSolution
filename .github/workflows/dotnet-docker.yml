@@ -28,7 +28,7 @@ jobs:
         run: dotnet build --no-restore --configuration Release
 
       - name: Run tests
-        run: dotnet test --no-build --verbosity normal
+        run: dotnet test MoviesApp.Tests/MoviesApp.Tests.csproj --verbosity normal
 
       - name: Setup Docker
         uses: docker/setup-buildx-action@v2
