@@ -1,4 +1,3 @@
-````markdown
 # 🎬 MoviesApp API
 
 API para manejo de películas y usuarios, con autenticación JWT. Esta guía explica cómo ejecutar y probar la aplicación.
