@@ -116,18 +116,17 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddControllers();
 
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 
-var app = builder.Build();
-
-if (!app.Environment.IsDevelopment())
+if (!builder.Environment.IsDevelopment())
 {
-    // Configurar Kestrel solo en Render / producción
-    var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
     builder.WebHost.ConfigureKestrel(options =>
     {
         options.ListenAnyIP(int.Parse(port));
     });
 }
+
+var app = builder.Build();
 
 // Middleware
 app.UseSwagger();
