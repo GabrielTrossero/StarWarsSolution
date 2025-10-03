@@ -31,7 +31,9 @@ La API está desplegada y accesible en:
 ```
 https://starwarssolution.onrender.com/swagger/index.html
 ```
+
 Tener en cuenta, que al acceder por primera vez, la misma tarda unos segundos en levantarse.
+
 ---
 
 ## 📥 Clonar el repositorio
@@ -108,5 +110,3 @@ http://localhost:8080/swagger/index.html
 * La app usa base de datos en memoria (`InMemoryDatabase`), por lo que los datos se borran al reiniciar.
 * No se requiere configuración extra de SQL Server para correr este challenge.
 * Swagger está siempre habilitado, por lo que la documentación interactiva de la API está en `/swagger`.
-
-```
