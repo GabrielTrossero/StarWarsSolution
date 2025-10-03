@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using MoviesApp.Application.DTOs;
 using MoviesApp.Application.Interfaces;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace MoviesApp.API.Controllers
 {
@@ -19,9 +20,16 @@ namespace MoviesApp.API.Controllers
             _authService = authService;
         }
 
-        // Registro
+        /// <summary>
+        /// Registers a new user in the system.
+        /// </summary>
         [HttpPost("register")]
         [AllowAnonymous]
+        [SwaggerOperation(
+            Summary = "Register a new user",
+            Description = "Creates a new user account with the provided registration data.")]
+        [SwaggerResponse(StatusCodes.Status200OK, "User successfully registered", typeof(UserDto))]
+        [SwaggerResponse(StatusCodes.Status400BadRequest, "Invalid data or user already exists")]
         public async Task<IActionResult> Register([FromBody] RegisterDto dto)
         {
             try
@@ -35,9 +43,16 @@ namespace MoviesApp.API.Controllers
             }
         }
 
-        // Login
+        /// <summary>
+        /// Authenticates a user and returns a JWT token.
+        /// </summary>
         [HttpPost("login")]
         [AllowAnonymous]
+        [SwaggerOperation(
+            Summary = "User login",
+            Description = "Authenticates the user and returns a JWT token if credentials are valid.")]
+        [SwaggerResponse(StatusCodes.Status200OK, "Authentication successful", typeof(AuthResponseDto))]
+        [SwaggerResponse(StatusCodes.Status401Unauthorized, "Invalid username or password")]
         public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {
             try
@@ -47,7 +62,7 @@ namespace MoviesApp.API.Controllers
             }
             catch (UnauthorizedAccessException)
             {
-                return Unauthorized(new { message = "Usuario/contraseña inválidos" });
+                return Unauthorized(new { message = "Invalid username or password" });
             }
         }
     }
