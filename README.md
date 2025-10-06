@@ -41,8 +41,8 @@ Tener en cuenta, que al acceder por primera vez, la misma tarda unos segundos en
 Primero, descargar el código desde GitHub:
 
 ```bash
-git clone https://github.com/<tu-usuario>/<tu-repo>.git
-cd <tu-repo>
+git clone https://github.com/GabrielTrossero/StarWarsSolution.git
+cd StarWarsSolution
 ````
 
 ---
@@ -105,8 +105,23 @@ http://localhost:8080/swagger/index.html
 
 ---
 
+## 🎬 Funcionamiento de la Aplicación
+
+* La app tiene una BD propia para gestionar peliculas y usuarios.
+* Los usuarios pueden tener rol "Admin" o "Regular", lo que limita sus acciones en la aplicación.
+* Se pueden obtener y sincronizar peliculas de una API externa para agregarlas a nuestra BD.
+* Se pueden dar distintos casos en esta sincronización. Para eso se definieron estados.
+* Los posibles estados son los siguientes:
+1. "NotAdded": La pelicula no está agregada a la BD.
+2. "Added": La pelicula está agregada a la BD y tiene la misma información.
+3. "Deleted": La pelicula está agregada a la BD pero se eliminó. 
+4. "UpdatedLocal": La pelicula está agregada a la BD pero se actualizó más recientemente en nuestra aplicación.
+5. "UpdatedExternal": La pelicula está agregada a la BD pero se actualizó más recientemente en la API externa.
+
+---
+
 ## ✅ Notas importantes
 
-* La app usa base de datos en memoria (`InMemoryDatabase`), por lo que los datos se borran al reiniciar.
+* La app usa base de datos en memoria, por lo que los datos se borran al reiniciar.
 * No se requiere configuración extra de SQL Server para correr este challenge.
 * Swagger está siempre habilitado, por lo que la documentación interactiva de la API está en `/swagger`.

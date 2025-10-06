@@ -39,8 +39,8 @@ namespace MoviesApp.API.Controllers
         /// Retrieves a movie by ID.
         /// </summary>
         [HttpGet("{id:int}")]
-        [Authorize(Roles = "Regular")]
-        [SwaggerOperation(Summary = "Get movie by ID", Description = "Accessible only to users with the Regular role.")]
+        [Authorize(Roles = "Regular,Admin")]
+        [SwaggerOperation(Summary = "Get movie by ID", Description = "Accessible to users with Regular or Admin roles.")]
         [ProducesResponseType(typeof(Movie), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetById(int id)

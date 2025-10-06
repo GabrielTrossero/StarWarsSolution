@@ -1,10 +1,13 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using MoviesApp.Application.DTOs;
 using MoviesApp.Application.DTOs.MovieSync;
 using MoviesApp.Application.Interfaces;
+using MoviesApp.Domain.Entities;
 using Swashbuckle.AspNetCore.Annotations;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace MoviesApp.API.Controllers
 {
@@ -57,7 +60,7 @@ namespace MoviesApp.API.Controllers
         [SwaggerOperation(
             Summary = "Sync movies by status",
             Description = "Sync movies by status. If a status is set to true, movies with that status will be updated based on information from the external API.")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(List<Movie>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> SyncByStatus([FromBody] MovieSyncRequest request)
         {
@@ -75,6 +78,9 @@ namespace MoviesApp.API.Controllers
                 return BadRequest("At least one status must be true.");
 
             var movieList = await _movieExternalService.SyncMoviesByStatusAsync(statusesToSync);
+
+            if (movieList == null || !movieList.Any())
+                return NoContent();
 
             return Ok(movieList);
         }
@@ -96,8 +102,9 @@ namespace MoviesApp.API.Controllers
             if (string.IsNullOrEmpty(externalId))
                 return BadRequest("ExternalId must be provided.");
 
-            await _movieExternalService.ForceUpdateMovieAsync(externalId);
-            return Ok($"Movie {externalId} was force-updated.");
+            var result = await _movieExternalService.ForceUpdateMovieAsync(externalId);
+
+            return Ok(result);
         }
     }
 }

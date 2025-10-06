@@ -107,7 +107,6 @@ namespace MoviesApp.Tests
             _movieRepoMock.Setup(r => r.GetByIdAsync(id)).ReturnsAsync(existing);
             _movieRepoMock.Setup(r => r.UpdateAsync(existing)).Returns(Task.CompletedTask);
 
-            // Simula que AutoMapper asigna los valores
             _mapperMock.Setup(m => m.Map(updated, existing))
                        .Callback<Movie, Movie>((src, dest) => dest.Title = src.Title);
 

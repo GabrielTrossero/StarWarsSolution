@@ -76,7 +76,7 @@ namespace MoviesApp.Tests
         }
         };
 
-        [Fact(DisplayName = "GetSyncStatusAsync - Devuelve lista vacía si API externa no responde")]
+        [Fact(DisplayName = "GetSyncStatusAsync - Returns empty list if external API does not respond")]
         public async Task GetSyncStatusAsync_ReturnsEmpty_WhenApiFails()
         {
             // Arrange
@@ -89,7 +89,7 @@ namespace MoviesApp.Tests
             Assert.Empty(result);
         }
 
-        [Fact(DisplayName = "SyncMoviesByStatusAsync - No sincroniza si ya está en proceso")]
+        [Fact(DisplayName = "SyncMoviesByStatusAsync - Does not sync if already in process")]
         public async Task SyncMoviesByStatusAsync_ReturnsEmpty_IfAlreadySyncing()
         {
             // Arrange
@@ -108,7 +108,7 @@ namespace MoviesApp.Tests
                 .SetValue(null, false);
         }
 
-        [Fact(DisplayName = "ForceUpdateMovieAsync - Agrega nueva película si no existe")]
+        [Fact(DisplayName = "ForceUpdateMovieAsync - Add new movie if it doesn't exist")]
         public async Task ForceUpdateMovieAsync_AddsNewMovie_IfNotExists()
         {
             // Arrange
@@ -130,7 +130,7 @@ namespace MoviesApp.Tests
             _movieRepoMock.Verify(r => r.AddAsync(It.Is<Movie>(m => m.ExternalId == film.Uid)), Times.Once);
         }
 
-        [Fact(DisplayName = "ForceUpdateMovieAsync - Actualiza película existente")]
+        [Fact(DisplayName = "ForceUpdateMovieAsync - Update existing movie")]
         public async Task ForceUpdateMovieAsync_UpdatesMovie_IfExists()
         {
             // Arrange
@@ -153,11 +153,13 @@ namespace MoviesApp.Tests
             _movieRepoMock.Verify(r => r.UpdateAsync(existing), Times.Once);
         }
 
-        [Theory(DisplayName = "CalculateSyncResultsAsync - Devuelve estado correcto según diferencias")]
-        [InlineData("2024-01-03T00:00:00Z", "2024-01-02T00:00:00Z", MovieSyncStatus.UpdatedLocal)]
-        [InlineData("2024-01-01T00:00:00Z", "2024-01-02T00:00:00Z", MovieSyncStatus.UpdatedExternal)]
-        [InlineData("2024-01-02T00:00:00Z", "2024-01-02T00:00:00Z", MovieSyncStatus.Added)]
-        public async Task CalculateSyncResultsAsync_ReturnsExpectedStatus(string localEdited, string externalEdited, MovieSyncStatus expected)
+        [Theory(DisplayName = "CalculateSyncResultsAsync - Returns correct status according to differences")]
+        [InlineData(1, "2024-01-03T00:00:00Z", "2024-01-02T00:00:00Z", null, MovieSyncStatus.UpdatedLocal)]
+        [InlineData(1, "2024-01-01T00:00:00Z", "2024-01-02T00:00:00Z", null, MovieSyncStatus.UpdatedExternal)]
+        [InlineData(1, "2024-01-02T00:00:00Z", "2024-01-02T00:00:00Z", null, MovieSyncStatus.Added)]
+        [InlineData(0, "2024-01-02T00:00:00Z", "2024-01-02T00:00:00Z", null, MovieSyncStatus.NotAdded)]
+        [InlineData(1, "2024-01-02T00:00:00Z", "2024-01-02T00:00:00Z", "2024-01-02T00:00:00Z", MovieSyncStatus.Deleted)]
+        public async Task CalculateSyncResultsAsync_ReturnsExpectedStatus(int idLocal, string localEdited, string externalEdited, string dateTo, MovieSyncStatus expected)
         {
             // Arrange
             var response = CreateSampleSwapiResponse();
@@ -165,13 +167,18 @@ namespace MoviesApp.Tests
 
             var localMovie = new Movie
             {
+                Id = idLocal,
                 ExternalId = film.Uid,
                 Edited = DateTime.Parse(localEdited),
-                DateTo = null
+                DateTo = string.IsNullOrEmpty(dateTo) ? (DateTime?)null : DateTime.Parse(dateTo)
             };
 
+            var localMovies = idLocal == 0
+                ? new List<Movie>()  // No hay películas locales
+                : new List<Movie> { localMovie };
+
             _movieRepoMock.Setup(r => r.GetByExternalIdsAsync(It.IsAny<IEnumerable<string>>()))
-                          .ReturnsAsync(new List<Movie> { localMovie });
+                          .ReturnsAsync(localMovies);
 
             _mapperMock.Setup(m => m.Map<Movie>(It.IsAny<SwapiFilmResult>()))
                        .Returns(new Movie
@@ -190,7 +197,7 @@ namespace MoviesApp.Tests
             Assert.Equal(expected, result.First().Status);
         }
 
-        [Fact(DisplayName = "ForceUpdateMovieAsync - Loggea advertencia si no encuentra película externa")]
+        [Fact(DisplayName = "ForceUpdateMovieAsync - Log warning if no external movie found")]
         public async Task ForceUpdateMovieAsync_LogsWarning_WhenFilmNotFound()
         {
             // Arrange

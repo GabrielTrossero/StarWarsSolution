@@ -13,6 +13,6 @@ namespace MoviesApp.Application.Interfaces
     {
         Task<List<MovieSyncResult>> GetSyncStatusAsync();
         Task<List<Movie>> SyncMoviesByStatusAsync(IEnumerable<MovieSyncStatus> statusesToSync);
-        Task ForceUpdateMovieAsync(string externalId);
+        Task<Movie> ForceUpdateMovieAsync(string externalId);
     }
 }
