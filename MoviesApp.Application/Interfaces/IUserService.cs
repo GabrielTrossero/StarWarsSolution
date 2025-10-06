@@ -1,4 +1,5 @@
-﻿using MoviesApp.Application.DTOs;
+﻿using MoviesApp.Application.DTOs.Auth;
+using MoviesApp.Application.DTOs.User;
 using MoviesApp.Domain.Entities;
 using System;
 using System.Collections.Generic;
@@ -10,6 +11,6 @@ namespace MoviesApp.Application.Interfaces
 {
     public interface IUserService
     {
-        Task<UserDto> CreateAsync(RegisterDto dto);
+        Task<UserDto> CreateAsync(User dto, string password);
     }
 }

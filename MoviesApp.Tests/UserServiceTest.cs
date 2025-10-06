@@ -1,7 +1,8 @@
 ﻿using AutoMapper;
 using Microsoft.AspNetCore.Identity;
 using Moq;
-using MoviesApp.Application.DTOs;
+using MoviesApp.Application.DTOs.Auth;
+using MoviesApp.Application.DTOs.User;
 using MoviesApp.Application.Services;
 using MoviesApp.Domain.Entities;
 using MoviesApp.Domain.Interfaces;
@@ -29,50 +30,54 @@ namespace MoviesApp.Tests
         }
 
         #region CreateAsync
-
         [Theory]
         [InlineData("user1", "user1@email.com", "Regular")]
         [InlineData("admin", "admin@email.com", "Admin")]
-        [InlineData("userNoRole", "nrole@email.com", null)]
-        [InlineData("userEmptyRole", "emptyrole@email.com", "")]
-        public async Task CreateAsync_CreatesUser_WhenValid(string username, string email, string? role)
+        public async Task CreateAsync_CreatesUser_WhenValid(string username, string email, string role)
         {
-            var dto = new RegisterDto(username, email, "password123", role);
+            var user = new User
+            {
+                Username = username,
+                Email = email,
+                Role = Enum.Parse<Role>(role, true)
+            };
+
+            const string password = "password123";
 
             _userRepoMock.Setup(r => r.GetByUsernameAsync(username)).ReturnsAsync((User?)null);
             _userRepoMock.Setup(r => r.GetByEmailAsync(email)).ReturnsAsync((User?)null);
-            _passwordHasherMock.Setup(p => p.HashPassword(It.IsAny<User>(), dto.Password)).Returns("hashedpassword");
+            _passwordHasherMock.Setup(p => p.HashPassword(It.IsAny<User>(), password)).Returns("hashedpassword");
             _mapperMock.Setup(m => m.Map<UserDto>(It.IsAny<User>()))
                 .Returns((User u) => new UserDto(u.Id, u.Username, u.Email, u.Role, u.CreatedAt));
 
-            var result = await _userService.CreateAsync(dto);
+            var result = await _userService.CreateAsync(user, password);
 
             Assert.Equal(username, result.Username);
             Assert.Equal(email, result.Email);
-            if (string.IsNullOrWhiteSpace(role))
-                Assert.Equal(Role.Regular, result.Role);
-            else
-                Assert.Equal(Enum.Parse<Role>(role, true), result.Role);
+            Assert.Equal(Enum.Parse<Role>(role, true), result.Role);
 
             _userRepoMock.Verify(r => r.AddAsync(It.IsAny<User>()), Times.Once);
             _userRepoMock.Verify(r => r.SaveChangesAsync(), Times.Once);
-            _passwordHasherMock.Verify(p => p.HashPassword(It.IsAny<User>(), dto.Password), Times.Once);
+            _passwordHasherMock.Verify(p => p.HashPassword(It.IsAny<User>(), password), Times.Once);
         }
+
 
         [Theory]
         [InlineData("existingUser", "new@email.com")]
         [InlineData("user2", "existing@email.com")]
         public async Task CreateAsync_ThrowsException_WhenUsernameOrEmailExists(string username, string email)
         {
-            var dto = new RegisterDto(username, email, "pass123", "Regular");
+            var user = new User { Username = username, Email = email };
+            const string password = "pass123";
 
             _userRepoMock.Setup(r => r.GetByUsernameAsync(username))
                 .ReturnsAsync(username == "existingUser" ? new User() : null);
             _userRepoMock.Setup(r => r.GetByEmailAsync(email))
                 .ReturnsAsync(email == "existing@email.com" ? new User() : null);
 
-            await Assert.ThrowsAsync<InvalidOperationException>(() => _userService.CreateAsync(dto));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => _userService.CreateAsync(user, password));
         }
+
 
         #endregion
 

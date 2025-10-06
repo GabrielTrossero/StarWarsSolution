@@ -11,8 +11,9 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
-using MoviesApp.Application.DTOs;
 using AutoMapper;
+using MoviesApp.Application.DTOs.User;
+using MoviesApp.Application.DTOs.Auth;
 
 namespace MoviesApp.Application.Services
 {

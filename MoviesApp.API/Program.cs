@@ -12,6 +12,7 @@ using MoviesApp.Infrastructure.Persistence;
 using MoviesApp.Infrastructure.Persistence.Repositories;
 using Serilog;
 using System.Text;
+using System.Text.Json.Serialization;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,6 +24,7 @@ builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"))
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 
 builder.Services.AddAutoMapper(cfg => { }, typeof(UserProfile).Assembly);
+builder.Services.AddAutoMapper(cfg => { }, typeof(MovieProfile).Assembly);
 
 // Add Dependency Injection
 builder.Services.AddScoped<IMovieRepository, MovieRepository>();
@@ -114,7 +116,9 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 

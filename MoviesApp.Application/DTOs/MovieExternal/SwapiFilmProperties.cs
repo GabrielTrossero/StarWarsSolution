@@ -4,20 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MoviesApp.Application.DTOs
+namespace MoviesApp.Application.DTOs.MovieExternal
 {
-    public class SwapiFilmResponse
-    {
-        public string Message { get; set; } = string.Empty;
-        public List<SwapiFilmResult> Result { get; set; } = new();
-    }
-
-    public class SwapiFilmResult
-    {
-        public string Uid { get; set; } = string.Empty;
-        public SwapiFilmProperties Properties { get; set; } = new();
-    }
-
     public class SwapiFilmProperties
     {
         public string Title { get; set; } = string.Empty;
