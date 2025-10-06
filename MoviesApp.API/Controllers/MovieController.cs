@@ -1,6 +1,9 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using MoviesApp.Application.DTOs;
+using MoviesApp.Application.DTOs.Movie;
 using MoviesApp.Application.Interfaces;
 using MoviesApp.Domain.Entities;
 using Swashbuckle.AspNetCore.Annotations;
@@ -12,12 +15,12 @@ namespace MoviesApp.API.Controllers
     public class MovieController : ControllerBase
     {
         private readonly IMovieService _movieService;
-        private readonly IMovieExternalService _movieExternalService;
+        private readonly IMapper _mapper;
 
-        public MovieController(IMovieService movieService, IMovieExternalService movieExternalService)
+        public MovieController(IMovieService movieService, IMapper mapper)
         {
             _movieService = movieService;
-            _movieExternalService = movieExternalService;
+            _mapper = mapper;
         }
 
         /// <summary>
@@ -36,8 +39,8 @@ namespace MoviesApp.API.Controllers
         /// Retrieves a movie by ID.
         /// </summary>
         [HttpGet("{id:int}")]
-        [Authorize(Roles = "Regular")]
-        [SwaggerOperation(Summary = "Get movie by ID", Description = "Accessible only to users with the Regular role.")]
+        [Authorize(Roles = "Regular,Admin")]
+        [SwaggerOperation(Summary = "Get movie by ID", Description = "Accessible to users with Regular or Admin roles.")]
         [ProducesResponseType(typeof(Movie), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetById(int id)
@@ -57,8 +60,9 @@ namespace MoviesApp.API.Controllers
         [SwaggerOperation(Summary = "Create a movie", Description = "Accessible only to users with the Admin role.")]
         [ProducesResponseType(typeof(Movie), StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> Create(Movie movie)
+        public async Task<IActionResult> Create(MovieRequestDto movieDto)
         {
+            var movie = _mapper.Map<Movie>(movieDto);
             var created = await _movieService.CreateMovie(movie);
             return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
         }
@@ -72,10 +76,10 @@ namespace MoviesApp.API.Controllers
         [ProducesResponseType(typeof(Movie), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> Update(int id, Movie movie)
+        public async Task<IActionResult> Update(int id, MovieRequestDto movieDto)
         {
-            if (id != movie.Id)
-                return BadRequest("The ID does not match.");
+            var movie = _mapper.Map<Movie>(movieDto);
+            movie.Id = id;
 
             var updated = await _movieService.UpdateMovie(movie);
             if (updated == null)
@@ -90,7 +94,7 @@ namespace MoviesApp.API.Controllers
         [HttpDelete("{id:int}")]
         [Authorize(Roles = "Admin")]
         [SwaggerOperation(Summary = "Delete a movie", Description = "Accessible only to users with the Admin role.")]
-        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> Delete(int id)
         {
@@ -98,20 +102,7 @@ namespace MoviesApp.API.Controllers
             if (!deleted)
                 return NotFound();
 
-            return NoContent();
-        }
-
-        /// <summary>
-        /// Synchronizes movies with an external service.
-        /// </summary>
-        [HttpPost("sync")]
-        [Authorize(Roles = "Admin")]
-        [SwaggerOperation(Summary = "Synchronize movies", Description = "Calls the external service to synchronize movies. Accessible only to Admin.")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> Sync()
-        {
-            await _movieExternalService.SyncMoviesAsync();
-            return Ok("Synchronization executed.");
+            return Ok("Movie successfully deleted.");
         }
     }
 }

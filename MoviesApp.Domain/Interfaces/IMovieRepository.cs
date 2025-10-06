@@ -14,7 +14,9 @@ namespace MoviesApp.Domain.Interfaces
         Task AddAsync(Movie movie);
         Task UpdateAsync(Movie movie);
         Task<IEnumerable<Movie>> GetByExternalIdsAsync(IEnumerable<string> externalIds);
+        Task<Movie?> GetByExternalIdAsync(string externalId);
         Task AddRangeAsync(IEnumerable<Movie> movies);
+        void UpdateRange(IEnumerable<Movie> movies);
         Task SaveChangesAsync();
     }
 }

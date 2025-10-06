@@ -1,7 +1,8 @@
 ﻿using AutoMapper;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
-using MoviesApp.Application.DTOs;
+using MoviesApp.Application.DTOs.Auth;
+using MoviesApp.Application.DTOs.User;
 using MoviesApp.Application.Interfaces;
 using MoviesApp.Domain.Entities;
 using MoviesApp.Domain.Interfaces;
@@ -27,26 +28,18 @@ namespace MoviesApp.Application.Services
             _mapper = mapper;
         }
 
-        public async Task<UserDto> CreateAsync(RegisterDto dto)
+        public async Task<UserDto> CreateAsync(User user, string password)
         {
-            var existingUser = await _userRepo.GetByUsernameAsync(dto.Username);
+            var existingUser = await _userRepo.GetByUsernameAsync(user.Username);
             if (existingUser != null) throw new InvalidOperationException("Username already exists.");
 
-            var existingEmail = await _userRepo.GetByEmailAsync(dto.Email);
+            var existingEmail = await _userRepo.GetByEmailAsync(user.Email);
             if (existingEmail != null) throw new InvalidOperationException("Email already registered.");
 
-            var user = new User
-            {
-                Username = dto.Username,
-                Email = dto.Email,
-                Role = string.IsNullOrWhiteSpace(dto.Role)
-                    ? Role.Regular
-                    : Enum.Parse<Role>(dto.Role, ignoreCase: true),
-                CreatedAt = DateTime.UtcNow,
-                IsActive = true
-            };
+            user.CreatedAt = DateTime.Now;
+            user.IsActive = true;
 
-            user.PasswordHash = _passwordHasher.HashPassword(user, dto.Password);
+            user.PasswordHash = _passwordHasher.HashPassword(user, password);
 
             await _userRepo.AddAsync(user);
             await _userRepo.SaveChangesAsync();

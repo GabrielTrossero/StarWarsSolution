@@ -1,5 +1,8 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using AutoMapper;
+using Microsoft.Extensions.Logging;
 using MoviesApp.Application.DTOs;
+using MoviesApp.Application.DTOs.MovieExternal;
+using MoviesApp.Application.DTOs.MovieSync;
 using MoviesApp.Application.Interfaces;
 using MoviesApp.Domain.Entities;
 using MoviesApp.Domain.Interfaces;
@@ -18,46 +21,201 @@ namespace MoviesApp.Application.Services
         private readonly IMovieRepository _movieRepository;
         private readonly HttpClient _httpClient;
         private static bool _isSyncing = false;
+        private readonly IMapper _mapper;
 
         public MovieExternalService(
             ILogger<MovieExternalService> logger,
             IMovieRepository movieRepository,
-            IHttpClientFactory httpClientFactory)
+            IHttpClientFactory httpClientFactory,
+            IMapper mapper)
         {
             _logger = logger;
             _movieRepository = movieRepository;
             _httpClient = httpClientFactory.CreateClient();
+            _mapper = mapper;
         }
 
-        public async Task SyncMoviesAsync()
+        public async Task<List<MovieSyncResult>> GetSyncStatusAsync()
         {
-            if (_isSyncing) return;
+            return await CalculateSyncResultsAsync();
+        }
+
+        public async Task<List<Movie>> SyncMoviesByStatusAsync(IEnumerable<MovieSyncStatus> statusesToSync)
+        {
+            var syncedMovies = new List<Movie>();
+
+            if (_isSyncing)
+            {
+                _logger.LogWarning("A synchronization is already in progress. Skipping new request.");
+                return new List<Movie>();
+            }
 
             try
             {
                 _isSyncing = true;
-                _logger.LogInformation("Starting movie synchronization...");
+                _logger.LogInformation("Starting configurable movie synchronization...");
 
-                var films = await FetchExternalFilmsAsync();
-                if (films == null || !films.Any())
+                var results = await CalculateSyncResultsAsync();
+
+                var newMovies = new List<Movie>();
+                var restoredMovies = new List<Movie>();
+                var updatedExternal = new List<Movie>();
+                var updatedLocal = new List<Movie>();
+
+                foreach (var result in results.Where(r => statusesToSync.Contains(r.Status)))
                 {
-                    _logger.LogWarning("No movies retrieved from the external API.");
-                    return;
+                    switch (result.Status)
+                    {
+                        case MovieSyncStatus.NotAdded:
+                            newMovies.Add(result.ExternalMovie);
+                            break;
+
+                        case MovieSyncStatus.Deleted:
+                            result.LocalMovie.DateTo = null;
+                            restoredMovies.Add(result.LocalMovie);
+                            break;
+
+                        case MovieSyncStatus.UpdatedExternal:
+                            _mapper.Map(result.ExternalMovie, result.LocalMovie);
+                            result.LocalMovie.Created = result.ExternalMovie.Created;
+                            result.LocalMovie.Edited = result.ExternalMovie.Edited;
+                            result.LocalMovie.DateTo = null;
+                            updatedExternal.Add(result.LocalMovie);
+                            break;
+
+                        case MovieSyncStatus.UpdatedLocal:
+                            _mapper.Map(result.ExternalMovie, result.LocalMovie);
+                            result.LocalMovie.Created = result.ExternalMovie.Created;
+                            result.LocalMovie.Edited = result.ExternalMovie.Edited;
+                            result.LocalMovie.DateTo = null;
+                            updatedLocal.Add(result.LocalMovie);
+                            _logger.LogInformation("Movie {id} forced update from external source.", result.LocalMovie.Id);
+                            break;
+                    }
                 }
 
-                var existingMovies = await GetExistingMoviesAsync(films.Select(f => f.Uid).ToList());
-                var newMovies = MapNewMovies(films, existingMovies);
-
                 await PersistNewMoviesAsync(newMovies);
+                await PersistRestoredMoviesAsync(restoredMovies);
+                await PersistUpdatedExternalMoviesAsync(updatedExternal);
+                await PersistUpdatedLocalMoviesAsync(updatedLocal);
+
+                syncedMovies.AddRange(newMovies);
+                syncedMovies.AddRange(restoredMovies);
+                syncedMovies.AddRange(updatedExternal);
+                syncedMovies.AddRange(updatedLocal);
+
+                _logger.LogInformation("Synchronization completed successfully.");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error during movie synchronization");
+                _isSyncing = false;
             }
             finally
             {
                 _isSyncing = false;
             }
+
+            return syncedMovies;
+        }
+
+        public async Task<Movie> ForceUpdateMovieAsync(string externalId)
+        {
+            var result = new Movie();
+            var films = await FetchExternalFilmsAsync();
+            var film = films?.FirstOrDefault(f => f.Uid == externalId);
+
+            if (film == null)
+            {
+                _logger.LogWarning("External movie {externalId} not found.", externalId);
+                return result;
+            }
+
+            var existing = await _movieRepository.GetByExternalIdAsync(externalId);
+            if (existing == null)
+            {
+                var movie = _mapper.Map<Movie>(film);
+                await _movieRepository.AddAsync(movie);
+                _logger.LogInformation("Movie {externalId} was force-added.", externalId);
+                result = movie;
+            }
+            else
+            {
+                _mapper.Map(film, existing);
+                existing.DateTo = null;
+                await _movieRepository.UpdateAsync(existing);
+                _logger.LogInformation("Movie {externalId} was force-updated.", externalId);
+                result = existing;
+            }
+
+            return result;
+        }
+
+        private async Task<List<MovieSyncResult>> CalculateSyncResultsAsync()
+        {
+            var results = new List<MovieSyncResult>();
+
+            var films = await FetchExternalFilmsAsync();
+            if (films == null || !films.Any())
+                return results;
+
+            var externalIds = films.Select(f => f.Uid).ToList();
+            var existingMovies = await _movieRepository.GetByExternalIdsAsync(externalIds);
+            var existingDict = existingMovies.ToDictionary(m => m.ExternalId);
+
+            foreach (var film in films)
+            {
+                var externalMovie = _mapper.Map<Movie>(film);
+
+                existingDict.TryGetValue(film.Uid, out var localMovie);
+
+                if (localMovie == null)
+                {
+                    results.Add(new MovieSyncResult
+                    {
+                        Status = MovieSyncStatus.NotAdded,
+                        ExternalMovie = externalMovie
+                    });
+                }
+                else if (localMovie.DateTo != null)
+                {
+                    results.Add(new MovieSyncResult
+                    {
+                        Status = MovieSyncStatus.Deleted,
+                        LocalMovie = localMovie,
+                        ExternalMovie = externalMovie
+                    });
+                }
+                else if (localMovie.Edited > externalMovie.Edited)
+                {
+                    results.Add(new MovieSyncResult
+                    {
+                        Status = MovieSyncStatus.UpdatedLocal,
+                        LocalMovie = localMovie,
+                        ExternalMovie = externalMovie
+                    });
+                }
+                else if (localMovie.Edited < externalMovie.Edited)
+                {
+                    results.Add(new MovieSyncResult
+                    {
+                        Status = MovieSyncStatus.UpdatedExternal,
+                        LocalMovie = localMovie,
+                        ExternalMovie = externalMovie
+                    });
+                }
+                else if (localMovie.Edited == externalMovie.Edited)
+                {
+                    results.Add(new MovieSyncResult
+                    {
+                        Status = MovieSyncStatus.Added,
+                        LocalMovie = localMovie,
+                        ExternalMovie = externalMovie
+                    });
+                }
+            }
+
+            return results;
         }
 
         private async Task<List<SwapiFilmResult>?> FetchExternalFilmsAsync()
@@ -66,56 +224,30 @@ namespace MoviesApp.Application.Services
             return response?.Result;
         }
 
-        private async Task<Dictionary<string, Movie>> GetExistingMoviesAsync(List<string> externalIds)
+        private async Task PersistNewMoviesAsync(List<Movie> newMovies) =>
+            await PersistMoviesAsync(newMovies, _movieRepository.AddRangeAsync, "{count} new movies added.");
+
+        private async Task PersistRestoredMoviesAsync(List<Movie> restoredMovies) =>
+            await PersistMoviesAsync(restoredMovies, m => { _movieRepository.UpdateRange(m); return Task.CompletedTask; }, "{count} deleted movies restored.");
+
+        private async Task PersistUpdatedExternalMoviesAsync(List<Movie> updatedMovies) =>
+            await PersistMoviesAsync(updatedMovies, m => { _movieRepository.UpdateRange(m); return Task.CompletedTask; }, "{count} movies updated from external changes.");
+
+        private async Task PersistUpdatedLocalMoviesAsync(List<Movie> updatedMovies) =>
+            await PersistMoviesAsync(updatedMovies, m => { _movieRepository.UpdateRange(m); return Task.CompletedTask; }, "{count} movies updated from local override by external data.");
+
+
+        private async Task PersistMoviesAsync(
+            IEnumerable<Movie> movies,
+            Func<IEnumerable<Movie>, Task> persistAction,
+            string logMessage)
         {
-            var existing = await _movieRepository.GetByExternalIdsAsync(externalIds);
-            return existing.ToDictionary(m => m.ExternalId);
-        }
-
-        private List<Movie> MapNewMovies(List<SwapiFilmResult> films, Dictionary<string, Movie> existingMovies)
-        {
-            var newMovies = new List<Movie>();
-
-            foreach (var film in films)
-            {
-                if (!existingMovies.ContainsKey(film.Uid))
-                {
-                    var movie = new Movie
-                    {
-                        ExternalId = film.Uid,
-                        Title = film.Properties.Title,
-                        Director = film.Properties.Director,
-                        Producer = film.Properties.Producer,
-                        Created = DateTime.Parse(film.Properties.Created),
-                        Edited = DateTime.Parse(film.Properties.Edited),
-                        ReleaseDate = DateTime.Parse(film.Properties.Release_date),
-                        EpisodeId = film.Properties.Episode_id,
-                        Url = film.Properties.Url
-                    };
-                    newMovies.Add(movie);
-                    _logger.LogInformation("New movie detected: {title} (ExternalId: {externalId})", movie.Title, movie.ExternalId);
-                }
-                else
-                {
-                    _logger.LogInformation("Existing movie found: {title} (ExternalId: {externalId})", existingMovies[film.Uid].Title, film.Uid);
-                }
-            }
-
-            return newMovies;
-        }
-
-        private async Task PersistNewMoviesAsync(List<Movie> newMovies)
-        {
-            if (!newMovies.Any())
-            {
-                _logger.LogInformation("No new movies to add.");
+            if (movies == null || !movies.Any())
                 return;
-            }
 
-            await _movieRepository.AddRangeAsync(newMovies);
+            await persistAction(movies);
             await _movieRepository.SaveChangesAsync();
-            _logger.LogInformation("{count} new movies added to the database.", newMovies.Count);
-            _logger.LogInformation("Movie synchronization completed successfully.");
+            _logger.LogInformation(logMessage, movies.Count());
         }
     }
 }
