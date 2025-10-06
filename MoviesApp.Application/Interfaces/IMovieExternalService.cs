@@ -1,4 +1,7 @@
-﻿using System;
+﻿using MoviesApp.Application.DTOs;
+using MoviesApp.Application.DTOs.MovieSync;
+using MoviesApp.Domain.Entities;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,6 +11,8 @@ namespace MoviesApp.Application.Interfaces
 {
     public interface IMovieExternalService
     {
-        Task SyncMoviesAsync();
+        Task<List<MovieSyncResult>> GetSyncStatusAsync();
+        Task<List<Movie>> SyncMoviesByStatusAsync(IEnumerable<MovieSyncStatus> statusesToSync);
+        Task ForceUpdateMovieAsync(string externalId);
     }
 }

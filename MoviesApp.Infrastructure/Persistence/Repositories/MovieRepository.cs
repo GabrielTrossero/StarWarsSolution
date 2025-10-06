@@ -51,11 +51,21 @@ namespace MoviesApp.Infrastructure.Persistence.Repositories
                 .ToListAsync();
         }
 
+        public async Task<Movie?> GetByExternalIdAsync(string externalId)
+        {
+            return await _context.Movies
+                .FirstOrDefaultAsync(m => m.ExternalId == externalId);
+        }
+
         public async Task AddRangeAsync(IEnumerable<Movie> movies)
         {
             await _context.Movies.AddRangeAsync(movies);
         }
 
+        public void UpdateRange(IEnumerable<Movie> movies)
+        {
+            _context.Movies.UpdateRange(movies);
+        }
 
         public async Task SaveChangesAsync()
         {

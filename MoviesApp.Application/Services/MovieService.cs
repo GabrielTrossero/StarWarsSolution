@@ -1,4 +1,5 @@
-﻿using MoviesApp.Application.Interfaces;
+﻿using AutoMapper;
+using MoviesApp.Application.Interfaces;
 using MoviesApp.Domain.Entities;
 using MoviesApp.Domain.Interfaces;
 using System;
@@ -12,10 +13,12 @@ namespace MoviesApp.Application.Services
     public class MovieService : IMovieService
     {
         private readonly IMovieRepository _movieRepository;
+        private readonly IMapper _mapper;
 
-        public MovieService(IMovieRepository movieRepository)
+        public MovieService(IMovieRepository movieRepository, IMapper mapper)
         {
             _movieRepository = movieRepository;
+            _mapper = mapper;
         }
 
         public async Task<IEnumerable<Movie>> GetAllMovies()
@@ -43,6 +46,21 @@ namespace MoviesApp.Application.Services
             if (existing == null)
                 return null;
 
+            _mapper.Map(movie, existing);
+
+            existing.Edited = DateTime.UtcNow;
+
+            await _movieRepository.UpdateAsync(existing);
+            return existing;
+        }
+
+        /*
+        public async Task<Movie?> UpdateMovie(Movie movie)
+        {
+            var existing = await _movieRepository.GetByIdAsync(movie.Id);
+            if (existing == null)
+                return null;
+
             existing.Title = movie.Title;
             existing.ExternalId = movie.ExternalId;
             existing.EpisodeId = movie.EpisodeId;
@@ -55,7 +73,7 @@ namespace MoviesApp.Application.Services
 
             await _movieRepository.UpdateAsync(existing);
             return existing;
-        }
+        }*/
 
         public async Task<bool> DeleteMovie(int id)
         {

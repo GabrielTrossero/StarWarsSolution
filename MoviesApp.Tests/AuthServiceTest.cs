@@ -2,7 +2,8 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using Moq;
-using MoviesApp.Application.DTOs;
+using MoviesApp.Application.DTOs.Auth;
+using MoviesApp.Application.DTOs.User;
 using MoviesApp.Application.Services;
 using MoviesApp.Domain.Entities;
 using MoviesApp.Domain.Interfaces;

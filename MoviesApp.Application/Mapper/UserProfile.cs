@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
-using MoviesApp.Application.DTOs;
+using MoviesApp.Application.DTOs.Auth;
+using MoviesApp.Application.DTOs.User;
 using MoviesApp.Domain.Entities;
 using System;
 using System.Collections.Generic;
@@ -15,6 +16,9 @@ namespace MoviesApp.Application.Mapper
         public UserProfile()
         {
             CreateMap<User, UserDto>();
+
+            CreateMap<RegisterDto, User>()
+                .ForMember(dest => dest.PasswordHash, opt => opt.Ignore());
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using Moq;
+﻿using AutoMapper;
+using Moq;
 using MoviesApp.Application.Services;
 using MoviesApp.Domain.Entities;
 using MoviesApp.Domain.Interfaces;
@@ -10,32 +11,32 @@ using System.Threading.Tasks;
 
 namespace MoviesApp.Tests
 {
+
     public class MovieServiceTest
     {
         private readonly Mock<IMovieRepository> _movieRepoMock;
+        private readonly Mock<IMapper> _mapperMock;
         private readonly MovieService _movieService;
 
         public MovieServiceTest()
         {
             _movieRepoMock = new Mock<IMovieRepository>();
-            _movieService = new MovieService(_movieRepoMock.Object);
+            _mapperMock = new Mock<IMapper>();
+            _movieService = new MovieService(_movieRepoMock.Object, _mapperMock.Object);
         }
 
         [Fact]
         public async Task GetAllMovies_ReturnsAllMovies()
         {
-            // Arrange
             var movies = new List<Movie>
-            {
-                new Movie { Id = 1, Title = "A New Hope" },
-                new Movie { Id = 2, Title = "The Empire Strikes Back" }
-            };
+        {
+            new Movie { Id = 1, Title = "A New Hope" },
+            new Movie { Id = 2, Title = "The Empire Strikes Back" }
+        };
             _movieRepoMock.Setup(r => r.GetAllAsync()).ReturnsAsync(movies);
 
-            // Act
             var result = await _movieService.GetAllMovies();
 
-            // Assert
             Assert.Equal(2, result.Count());
             Assert.Contains(result, m => m.Title == "A New Hope");
             Assert.Contains(result, m => m.Title == "The Empire Strikes Back");
@@ -97,48 +98,27 @@ namespace MoviesApp.Tests
         [Theory]
         [InlineData(1, "Updated Movie")]
         [InlineData(2, "Another Update")]
-        public async Task UpdateMovie_UpdatesFields_WhenMovieExists(int id, string newTitle)
+        public async Task UpdateMovie_UsesMapper_WhenMovieExists(int id, string newTitle)
         {
-            var existing = new Movie
-            {
-                Id = id,
-                Title = "Old Title",
-                Director = "Old Director",
-                EpisodeId = 1,
-                Producer = "Old Producer",
-                ReleaseDate = DateTime.UtcNow.AddYears(-1),
-                ExternalId = "ext123",
-                OpeningCrawl = "Old crawl",
-                Url = "old.url"
-            };
-
-            var updatedMovie = new Movie
-            {
-                Id = id,
-                Title = newTitle,
-                Director = "New Director",
-                EpisodeId = 2,
-                Producer = "New Producer",
-                ReleaseDate = DateTime.UtcNow,
-                ExternalId = "ext456",
-                OpeningCrawl = "New crawl",
-                Url = "new.url"
-            };
+            // Arrange
+            var existing = new Movie { Id = id, Title = "Old Title" };
+            var updated = new Movie { Id = id, Title = newTitle };
 
             _movieRepoMock.Setup(r => r.GetByIdAsync(id)).ReturnsAsync(existing);
             _movieRepoMock.Setup(r => r.UpdateAsync(existing)).Returns(Task.CompletedTask);
 
-            var result = await _movieService.UpdateMovie(updatedMovie);
+            // Simula que AutoMapper asigna los valores
+            _mapperMock.Setup(m => m.Map(updated, existing))
+                       .Callback<Movie, Movie>((src, dest) => dest.Title = src.Title);
 
+            // Act
+            var result = await _movieService.UpdateMovie(updated);
+
+            // Assert
             Assert.NotNull(result);
             Assert.Equal(newTitle, result.Title);
-            Assert.Equal("New Director", result.Director);
-            Assert.Equal(2, result.EpisodeId);
-            Assert.Equal("New Producer", result.Producer);
-            Assert.Equal("ext456", result.ExternalId);
-            Assert.Equal("New crawl", result.OpeningCrawl);
-            Assert.Equal("new.url", result.Url);
-
+            Assert.True(result.Edited <= DateTime.UtcNow);
+            _mapperMock.Verify(m => m.Map(updated, existing), Times.Once);
             _movieRepoMock.Verify(r => r.UpdateAsync(existing), Times.Once);
         }
 

@@ -1,4 +1,5 @@
 ﻿using MoviesApp.Application.DTOs;
+using MoviesApp.Application.DTOs.Auth;
 using System;
 using System.Collections.Generic;
 using System.Linq;

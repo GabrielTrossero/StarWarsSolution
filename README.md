@@ -18,7 +18,7 @@ Una vez en Swagger podés probar los endpoints. Ejemplos:
 
 * **Login de usuario (obtención de token JWT):**
   `POST /api/auth/login`
-  → copiar el token generado y pegarlo en **Authorize** de Swagger (Bearer `<token>`).
+  → copiar el token generado y pegarlo en **Authorize** de Swagger (Bearer `<token>`). El Authorize está arriba a la derecha dentro de la página de Swagger.
 
 * **Acceder a endpoints protegidos (requieren login):**
   `GET /api/users/me`
