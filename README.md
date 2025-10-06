@@ -1,6 +1,6 @@
 # 🎬 MoviesApp API
 
-API para manejo de películas y usuarios, con autenticación JWT. Esta guía explica cómo ejecutar y probar la aplicación.
+API para manejo de películas y usuarios, con autenticación JWT. Esta guía explica cómo que funcionalidades tiene la aplicación, demas de como ejecutarla y probarla.
 
 ---
 
@@ -117,6 +117,7 @@ http://localhost:8080/swagger/index.html
 3. "Deleted": La pelicula está agregada a la BD pero se eliminó. 
 4. "UpdatedLocal": La pelicula está agregada a la BD pero se actualizó más recientemente en nuestra aplicación.
 5. "UpdatedExternal": La pelicula está agregada a la BD pero se actualizó más recientemente en la API externa.
+* La aplicación cuenta con un endpoint en el cual se puede especificar que estados se desean sincronizar.
 
 ---
 
